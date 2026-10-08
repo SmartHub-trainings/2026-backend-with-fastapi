@@ -1,4 +1,22 @@
 from fastapi import FastAPI
+from pydantic import BaseModel,Field,model_validator
+
+class UserCreate(BaseModel):
+    first_name:str
+    last_name:str
+    other_name:str|None=None
+    age:int
+    password:str=Field(...,min_length=8)
+    confirmPassword:str
+
+    @model_validator(mode="after")
+    def confirm_password(self):
+        if self.password != self.confirmPassword:
+            raise ValueError("Passwords do not match.")
+
+        return self
+
+
 app = FastAPI()
 users =[
     {"first_name":"Daniel","last_name":"Tadesse","user_id":1},
@@ -35,12 +53,27 @@ def get_user_by_id(user_id:int):
 
 
 @app.post("/users")
-def create_new_user(body:dict):
+def create_new_user(body:UserCreate):
     # print(body)
-    user =body
+    user =body.model_dump()
+    # if user["password"] != user["confirmPassword"]:
+    #     return f"Passwords do not match."
     user["user_id"] = len(users) +1
     users.append(user)
     return {"message":"User created successfully","data":user}
 
-
+@app.delete("/users/{user_id}")
+def delete_user_by_id(user_id:int):
+    for user in users:
+        if user["user_id"] == user_id:
+            users.remove(user)
+            return f"User with the id {user_id} has been deleted successfully."
+    return f"No user with the id {user_id} was not found."
     
+@app.put("/users/{user_id}")
+def update_user_by_id(user_id:int,body:dict):
+    for user in users:
+        if user["user_id"] == user_id:
+            user.update(body)
+            return f"User with the id {user_id} has been updated successfully."
+    return f"No user with the id {user_id} was not found."
